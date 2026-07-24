@@ -48,14 +48,15 @@ function mark(name) {
 }
 
 /* chapter times are measured from an instrumented full run (see MARKS) */
-const TOTAL = 264100;
+const TOTAL = 313320;
 const CHAPTERS = [
   ['INTRO', 0], ['HAND 1', 6560], ['HAND 2', 26180], ['HAND 3', 46910],
-  ['HAND 4', 67770], ['PROFILE', 91520], ['SIMS', 109720],
-  ['DECISION', 119390], ['PHONE', 128910], ['AP PLAYER', 139200],
-  ['AP DECISION', 212210], ['AP PHONE', 230880], ['FLOOR', 241180],
+  ['HAND 4', 67770], ['SURVEIL', 91520], ['THEFT', 126840],
+  ['PROFILE', 138380], ['SIMS', 156590], ['DECISION', 166260],
+  ['PHONE', 175780], ['AP PLAYER', 186070], ['AP DECISION', 259080],
+  ['AP PHONE', 277680], ['FLOOR', 287970],
 ];
-const PHASE_STARTS = { 1: 0, 2: 91520, 3: 109720, 4: 139200, 5: 241180 };
+const PHASE_STARTS = { 1: 0, 2: 91520, 3: 138380, 4: 156590, 5: 186070, 6: 287970 };
 
 $('pauseBtn').addEventListener('click', () => {
   paused = !paused;
@@ -108,7 +109,8 @@ let scrubDragging = false;
   });
 })();
 
-function showScene(n, tab = n) {
+function showScene(n, tab = n, surv = false) {
+  document.body.classList.toggle('surv-mode', surv);
   document.querySelectorAll('.scene').forEach(s => s.classList.remove('visible'));
   $('scene' + n).classList.add('visible');
   document.querySelectorAll('.phase-btn').forEach(b =>
@@ -136,6 +138,7 @@ async function startDemo(targetMs = 0) {
   updateScrubber();
   try {
     await runScene1();
+    await runSceneSurv();
     await runScene2();
     await runIntel(INTEL_COMP);
     await runSceneAP();
@@ -401,7 +404,7 @@ async function runScene1() {
   clearInterval(clockTimer);
   clockTimer = setInterval(() => { if (!paused) { clockSec++; $('hudClock').textContent = fmtClock(clockSec); } }, 350);
 
-  await titleCard('PHASE 01 / 05', 'Computer Vision Capture',
+  await titleCard('PHASE 01 / 06', 'Computer Vision Capture',
     'One overhead camera per table on The Venetian casino floor. Every card, chip, gesture and payout — detected, classified and scored in real time. No pit clipboard. No guesswork.');
 
   /* lock onto the scene */
@@ -412,6 +415,7 @@ async function runScene1() {
   cvBox(34, 78, 32, 19, 'PLAYER #4187 · SEAT 5 · 98.7%', 'roi');
   await sleep(800);
   logEvent('FACE', 'Identity: Venetian Rewards match — M. Torres (SAPPHIRE)', '');
+  logEvent('SYNC', 'RFID bet data linked — wagers cross-validated', 'eval');
   cvBox(42.5, 55, 15, 15, 'BET ZONE · SEAT 5', 'roi');
   await sleep(1000);
 
@@ -528,6 +532,129 @@ async function playHand(h, idx) {
 }
 
 /* ============================================================
+   SCENE 1B — SURVEILLANCE & GAME PROTECTION
+   ============================================================ */
+
+let protectedTally = 0, incidentCount = 0;
+
+function addIncident(sev, title, sub, amt) {
+  incidentCount++;
+  $('survInc').textContent = incidentCount;
+  const el = document.createElement('div');
+  el.className = 'incident ' + sev;
+  el.innerHTML = `<div class="inc-head"><b>${title}</b><span>${amt || ''}</span></div><div class="inc-sub">${sub}</div>`;
+  $('incidentList').prepend(el);
+  el.getBoundingClientRect();
+  el.classList.add('on');
+}
+
+function bumpProtected(n) {
+  protectedTally += n;
+  $('survTally').textContent = '$' + protectedTally.toLocaleString();
+}
+
+function clearTable() {
+  const CV = $('cvLayer');
+  while (CV.children.length > 2) CV.removeChild(CV.lastChild);
+  $('cardLayer').innerHTML = '';
+  $('chipLayer').innerHTML = '';
+}
+
+async function runSceneSurv() {
+  mark('surv');
+  showScene(1, 2, true);
+  ['cardLayer','chipLayer','cvLayer','floatLayer'].forEach(id => $(id).innerHTML = '');
+  $('incidentList').innerHTML = '';
+  protectedTally = 0; incidentCount = 0;
+  $('survTally').textContent = '$0';
+  $('survInc').textContent = '0';
+  clockSec = 21 * 3600 + 38 * 60 + 12;
+  clearInterval(clockTimer);
+  clockTimer = setInterval(() => { if (!paused) { clockSec++; $('hudClock').textContent = fmtClock(clockSec); } }, 350);
+
+  await titleCard('PHASE 02 / 06', 'Surveillance, Automated',
+    'The same camera that rates play also protects the game. Payout errors, missed deals, past-posting and chip theft \u2014 flagged in seconds, not found in tape review. No operator watching twelve feeds; the system watches every seat at every table.');
+
+  cvBox(38, 2, 24, 14, 'DEALER \u00b7 STAFF #221 \u00b7 99.1%', 'roi');
+  cvBox(16, 26, 68, 60, 'GAME PROTECTION \u00b7 ALL SEATS', 'roi');
+  await sleep(1000);
+
+  /* --- incident 1: dealer overpay --- */
+  chipStack(46.6, 59.5, ['black', 'black']);
+  await sleep(400);
+  cvBox(44.5, 55.5, 9, 12, 'WAGER $100 \u00b7 RFID MATCH');
+  await sleep(700);
+  await dealCard('10', '\u2660', 41, 66, -7, false);
+  await dealCard('7', '\u2665', 43, 16, -4, false);
+  await dealCard('9', '\u2666', 46.5, 67.5, 5, false);
+  const hole1 = await dealCard('10', '\u2663', 48.5, 16.5, 6, true);
+  await sleep(600);
+  flipCard(hole1, '10', '\u2663');
+  await banner('PLAYER 19 BEATS DEALER 17 \u2014 PAYOUT DUE: $100', 'neutral', 1600);
+  chipStack(43.5, 56, ['black', 'green', 'green']);
+  await sleep(700);
+  cvBox(41.5, 52, 8.5, 12, 'PAYOUT $150 \u00b7 EXPECTED $100', 'warn');
+  await sleep(900);
+  await banner('DEALER OVERPAY \u2014 $50 VARIANCE \u00b7 PIT NOTIFIED', 'bad', 2200);
+  addIncident('warn', 'Dealer overpay \u2014 seat 3', 'Paid $150 on a $100 win \u00b7 pit notified before the player left the table', '+$50');
+  bumpProtected(50);
+  await sleep(1400);
+
+  /* --- incident 2: misdeal / exposed hole card --- */
+  clearTable();
+  await sleep(500);
+  await dealCard('K', '\u2665', 41, 66, -7, false);
+  await dealCard('5', '\u2663', 43, 16, -4, false);
+  await dealCard('6', '\u2660', 46.5, 67.5, 5, false);
+  await dealCard('J', '\u2666', 48.5, 16.5, 6, false);   // hole dealt face-up by mistake
+  await sleep(400);
+  cvBox(47.9, 15.4, 5.6, 11.4, 'HOLE CARD EXPOSED', 'warn');
+  await sleep(900);
+  await banner('MISDEAL \u2014 HOLE CARD EXPOSED \u00b7 HAND VOIDED PER PROCEDURE', 'bad', 2200);
+  addIncident('warn', 'Misdeal \u2014 exposed hole card', 'Hand voided per procedure \u00b7 dealer coaching flag logged', '');
+  await sleep(1400);
+
+  /* --- incident 3: past-posting --- */
+  clearTable();
+  await sleep(500);
+  chipStack(46.6, 59.5, ['green', 'green']);
+  await sleep(400);
+  cvBox(44.5, 55.5, 9, 12, 'WAGER $50 \u00b7 RFID MATCH');
+  await sleep(700);
+  await dealCard('A', '\u2660', 41, 66, -7, false);
+  await sleep(700);
+  chipStack(46.9, 57.8, ['black']);   // chip added after first card
+  await sleep(600);
+  cvBox(43.5, 52.5, 11, 15, 'BET CHANGED AFTER DEAL', 'warn');
+  await sleep(900);
+  await banner('PAST-POSTING \u2014 BET RAISED $50 \u2192 $150 AFTER FIRST CARD \u00b7 CLIP SAVED', 'bad', 2400);
+  addIncident('alert', 'Past-posting \u2014 seat 4', 'Bet raised after first card \u00b7 RFID mismatch confirmed \u00b7 clip saved, pit + surveillance notified', '+$100');
+  bumpProtected(100);
+  await sleep(1400);
+
+  /* --- incident 4: chip theft at the rail --- */
+  mark('theft');
+  clearTable();
+  await sleep(500);
+  const rail = chipStack(30, 68, ['black', 'black', 'black', 'green', 'green']);
+  cvBox(27.5, 61, 9.5, 14, 'RAIL \u00b7 SEAT 2 \u00b7 UNATTENDED', 'roi');
+  await sleep(1400);
+  rail.removeChild(rail.lastChild);
+  rail.removeChild(rail.lastChild);
+  rail.removeChild(rail.lastChild);
+  await sleep(500);
+  cvBox(27.5, 61, 9.5, 14, 'CHIP REMOVAL DETECTED', 'warn');
+  await sleep(800);
+  await banner('CHIP THEFT \u2014 $500 REMOVED FROM SEAT 2 RAIL \u00b7 SECURITY DISPATCHED', 'bad', 2400);
+  addIncident('alert', 'Chip theft \u2014 seat 2 rail', 'Neighboring player removed $500 while seat unattended \u00b7 security dispatched \u00b7 clip saved', '+$500');
+  bumpProtected(500);
+  await sleep(1400);
+
+  await banner('4 INCIDENTS FLAGGED \u00b7 $650 PROTECTED \u00b7 ZERO OPERATOR HOURS', 'neutral', 2600);
+  clearInterval(clockTimer);
+}
+
+/* ============================================================
    SCENE 2 — DATA AGGREGATION
    ============================================================ */
 
@@ -583,7 +710,7 @@ const DERIVED = [
 
 async function runScene2() {
   mark('scene2');
-  showScene(2);
+  showScene(2, 3);
   $('rawStream').innerHTML = '';
   $('profileGrid').innerHTML = '';
   $('derivedList').innerHTML = '';
@@ -592,7 +719,7 @@ async function runScene2() {
   $('pfTier').textContent = 'RESOLVING IDENTITY…';
   const st = $('pfStatus'); st.textContent = 'SYNCING'; st.classList.remove('done');
 
-  await titleCard('PHASE 02 / 05', 'Data Aggregation',
+  await titleCard('PHASE 03 / 06', 'Data Aggregation',
     'Every detection event streams into one unified player record — the full rating a casino currently needs three systems and a pit boss to approximate, built automatically per hand.');
 
   /* build empty field grid */
@@ -661,8 +788,8 @@ async function runScene2() {
    ============================================================ */
 
 const INTEL_COMP = {
-  mark: 'scene3', tab: 3,
-  title: ['PHASE 03 / 05', 'Intelligence Layer → Host',
+  mark: 'scene3', tab: 4,
+  title: ['PHASE 04 / 06', 'Intelligence Layer → Host',
     'The engine prices every action the casino could take — gross theo gained, comp cost, net expected value — and pushes the most profitable move to the host\'s phone while the player is still in the seat.'],
   inputHead: 'INPUT · PLAYER #4187',
   inputLines: [
@@ -735,8 +862,8 @@ const INTEL_COMP = {
 };
 
 const INTEL_AP = {
-  mark: 'apdecision', tab: 4,
-  title: ['PHASE 04 / 05', 'Game Protection Decision',
+  mark: 'apdecision', tab: 5,
+  title: ['PHASE 05 / 06', 'Game Protection Decision',
     'Same engine, opposite objective: when the vision layer confirms an advantage player, the system prices every defensive option and protects the house before the next shoe.'],
   inputHead: 'INPUT · PLAYER #2291 — GAME PROTECTION',
   inputLines: [
@@ -853,7 +980,7 @@ async function runIntel(cfg) {
   await sleep(400);
 
   /* action evaluation */
-  if (cfg.tab === 3) mark('decision');
+  if (cfg.tab === 4) mark('decision');
   $('actionsHead').style.opacity = 1;
   const rows = [];
   for (const a of cfg.actions) {
@@ -980,7 +1107,7 @@ const AP_HANDS = [
 
 async function runSceneAP() {
   mark('ap');
-  showScene(1, 4);
+  showScene(1, 5);
   /* reset the table for a new session */
   ['cardLayer','chipLayer','cvLayer','floatLayer','eventLog','handChips'].forEach(id => $(id).innerHTML = '');
   $('strategyBody').innerHTML = 'Awaiting hand…';
@@ -994,7 +1121,7 @@ async function runSceneAP() {
   clearInterval(clockTimer);
   clockTimer = setInterval(() => { if (!paused) { clockSec++; $('hudClock').textContent = fmtClock(clockSec); } }, 350);
 
-  await titleCard('SCENARIO 02', 'The Advantage Player',
+  await titleCard('PHASE 05 / 06', 'The Advantage Player',
     'Same table, 10:41 PM. A new face buys in for $5,000 and plays flawless blackjack. The system that comps weak players is also the one that catches sharp ones.');
 
   logEvent('POSE', 'Dealer skeleton locked · conf 99.1%');
@@ -1036,24 +1163,26 @@ const FLOOR_EVENTS = [
    '22:18 · <b>BJ-11</b> — Pace 61 hands/hr (−12%) · <b class="warn">ops flag</b>'],
   ['PAI-02', 'ok',   'Host dispatched — birthday recognition',
    '22:27 · <b>PAI-02</b> — Host dispatched · #8834 birthday · <b class="good">+$95 EV</b>'],
+  ['BJ-14', 'warn',  'Dealer overpay $75 — recovered',
+   '22:41 · <b>BJ-14</b> — Payout variance caught · <b class="good">+$75 recovered</b>'],
   ['BJ-07', 'alert', 'AP flat-bet enforced — $7.4K protected',
    '22:56 · <b>BJ-07</b> — Flat-bet enforced · #2291 · <b class="good">$7.4K protected</b>'],
 ];
 
 async function runSceneFloor() {
   mark('floor');
-  showScene(4, 5);
+  showScene(4, 6);
   $('floorGrid').innerHTML = '';
   $('queueFeed').innerHTML = '';
   $('floorStats').innerHTML = '';
 
-  await titleCard('PHASE 05 / 05', 'The Whole Floor, One Brain',
+  await titleCard('PHASE 06 / 06', 'The Whole Floor, One Brain',
     'Every table, every seat, every decision — the same pipeline running property-wide, feeding one host queue. One table was the demo. This is the product.');
 
   /* stats bar */
   const stats = [
     ['TABLES LIVE', '114'], ['RATED SESSIONS', '61'], ['THEO TODAY', '$438K'],
-    ['DECISIONS TODAY', '217'], ['COMP ROI', '3.2×'],
+    ['LEAKAGE RECOVERED', '$23K'], ['DECISIONS TODAY', '217'], ['COMP ROI', '3.2×'],
   ];
   for (const [label, val] of stats) {
     const el = document.createElement('div');

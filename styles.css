@@ -292,6 +292,26 @@ body{
 .event-log .tag.eval{color:var(--gold)}
 .event-log .tag.alert{color:var(--red)}
 
+/* ---- surveillance mode (reuses scene 1 with a different sidebar) ---- */
+#survPanel{display:none}
+body.surv-mode #scene1 .live-panel{display:none}
+body.surv-mode #survPanel{display:flex}
+.surv-tally{color:var(--gold)}
+.inc-group{flex:1;display:flex;flex-direction:column;min-height:0}
+.incident-list{flex:1;display:flex;flex-direction:column;gap:8px;overflow:hidden}
+.incident{
+  background:var(--card2);border:1px solid var(--line);border-left:3px solid var(--dim);
+  border-radius:9px;padding:10px 13px;
+  opacity:0;transform:translateY(-8px);transition:all .4s;
+}
+.incident.on{opacity:1;transform:none}
+.incident.warn{border-left-color:var(--gold)}
+.incident.alert{border-left-color:var(--red)}
+.inc-head{display:flex;justify-content:space-between;align-items:baseline}
+.inc-head b{font-size:12.5px;font-weight:600}
+.inc-head span{font-size:13px;font-weight:700;color:var(--green)}
+.inc-sub{font-size:11px;line-height:1.6;color:var(--dim);margin-top:3px}
+
 /* ============ SCENE 2 ============ */
 .agg-col{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;min-width:0}
 .agg-stream{flex:1}
