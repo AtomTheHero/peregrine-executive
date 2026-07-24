@@ -48,15 +48,15 @@ function mark(name) {
 }
 
 /* chapter times are measured from an instrumented full run (see MARKS) */
-const TOTAL = 313320;
+const TOTAL = 348340;
 const CHAPTERS = [
   ['INTRO', 0], ['HAND 1', 6560], ['HAND 2', 26180], ['HAND 3', 46910],
-  ['HAND 4', 67770], ['SURVEIL', 91520], ['THEFT', 126840],
-  ['PROFILE', 138380], ['SIMS', 156590], ['DECISION', 166260],
-  ['PHONE', 175780], ['AP PLAYER', 186070], ['AP DECISION', 259080],
-  ['AP PHONE', 277680], ['FLOOR', 287970],
+  ['HAND 4', 67770], ['SURVEIL', 91520], ['THEFT', 161720],
+  ['PROFILE', 173270], ['SIMS', 191470], ['DECISION', 201210],
+  ['PHONE', 210730], ['AP PLAYER', 221020], ['AP DECISION', 294030],
+  ['AP PHONE', 312700], ['FLOOR', 323000],
 ];
-const PHASE_STARTS = { 1: 0, 2: 91520, 3: 138380, 4: 156590, 5: 186070, 6: 287970 };
+const PHASE_STARTS = { 1: 0, 2: 91520, 3: 173270, 4: 191470, 5: 221020, 6: 323000 };
 
 $('pauseBtn').addEventListener('click', () => {
   paused = !paused;
@@ -600,7 +600,50 @@ async function runSceneSurv() {
   bumpProtected(50);
   await sleep(1400);
 
-  /* --- incident 2: misdeal / exposed hole card --- */
+  /* --- incident 2: blackjack short-pay --- */
+  clearTable();
+  await sleep(500);
+  chipStack(46.6, 59.5, ['black']);
+  await sleep(400);
+  cvBox(44.5, 55.5, 9, 12, 'WAGER $100 \u00b7 RFID MATCH');
+  await sleep(600);
+  await dealCard('A', '\u2660', 41, 66, -7, false);
+  await dealCard('9', '\u2666', 43, 16, -4, false);
+  await dealCard('K', '\u2665', 46.5, 67.5, 5, false);
+  await sleep(400);
+  cvBox(39.3, 63.2, 18.5, 17.5, 'BLACKJACK \u00b7 PAYS 3:2', 'warn');
+  await banner('BLACKJACK \u2014 PAYOUT DUE: $150', 'neutral', 1600);
+  chipStack(43.5, 56, ['black', 'green']);
+  await sleep(700);
+  cvBox(41.5, 52, 8.5, 12, 'PAID $125 \u00b7 DUE $150', 'warn');
+  await sleep(900);
+  await banner('SHORT PAY \u2014 PLAYER OWED $25 \u00b7 CORRECTED BEFORE DISPUTE', 'bad', 2200);
+  addIncident('warn', 'Blackjack short-pay \u2014 seat 3', '3:2 on $100 paid as $125 \u00b7 corrected at the table \u00b7 dispute and comp giveback avoided', '+$25');
+  bumpProtected(25);
+  await sleep(1400);
+
+  /* --- incident 3: wrong-denomination payout --- */
+  clearTable();
+  await sleep(500);
+  chipStack(46.6, 59.5, ['green', 'green']);
+  await sleep(400);
+  cvBox(44.5, 55.5, 9, 12, 'WAGER $50 \u00b7 RFID MATCH');
+  await sleep(600);
+  await dealCard('10', '\u2665', 41, 66, -7, false);
+  await dealCard('9', '\u2660', 43, 16, -4, false);
+  await dealCard('Q', '\u2666', 46.5, 67.5, 5, false);
+  await sleep(400);
+  await banner('PLAYER 20 BEATS DEALER 19 \u2014 PAYOUT DUE: $50', 'neutral', 1600);
+  chipStack(43.5, 56, ['black', 'green']);
+  await sleep(700);
+  cvBox(41.5, 52, 8.5, 12, 'PAID $125 \u00b7 DUE $50 \u00b7 WRONG DENOM', 'warn');
+  await sleep(900);
+  await banner('WRONG CHIP \u2014 $100 BLACK PAID AS $25 GREEN \u00b7 $75 RECOVERED', 'bad', 2200);
+  addIncident('warn', 'Wrong-denomination payout \u2014 seat 5', 'Black $100 paid in place of green $25 \u00b7 $75 recovered before the rack closed', '+$75');
+  bumpProtected(75);
+  await sleep(1400);
+
+  /* --- incident 4: misdeal / exposed hole card --- */
   clearTable();
   await sleep(500);
   await dealCard('K', '\u2665', 41, 66, -7, false);
@@ -614,7 +657,28 @@ async function runSceneSurv() {
   addIncident('warn', 'Misdeal \u2014 exposed hole card', 'Hand voided per procedure \u00b7 dealer coaching flag logged', '');
   await sleep(1400);
 
-  /* --- incident 3: past-posting --- */
+  /* --- incident 5: bet pinching --- */
+  clearTable();
+  await sleep(500);
+  const pinchBet = chipStack(46.6, 59.5, ['black', 'green', 'green']);
+  await sleep(400);
+  cvBox(44.5, 55.5, 9, 12, 'WAGER $150 \u00b7 RFID MATCH');
+  await sleep(700);
+  await dealCard('10', '\u2660', 41, 66, -7, false);
+  await dealCard('10', '\u2663', 43, 16, -4, false);
+  await dealCard('6', '\u2663', 46.5, 67.5, 5, false);
+  await sleep(700);
+  pinchBet.removeChild(pinchBet.lastChild);
+  pinchBet.removeChild(pinchBet.lastChild);
+  await sleep(600);
+  cvBox(43.5, 52.5, 11, 15, 'BET REDUCED AFTER DEAL', 'warn');
+  await sleep(900);
+  await banner('PINCHING \u2014 BET REDUCED $150 \u2192 $100 AFTER DEAL \u00b7 CLIP SAVED', 'bad', 2400);
+  addIncident('alert', 'Bet pinching \u2014 seat 4', '$50 removed after a hard 16 was dealt \u00b7 RFID delta confirmed \u00b7 clip saved, pit notified', '+$50');
+  bumpProtected(50);
+  await sleep(1400);
+
+  /* --- incident 6: past-posting --- */
   clearTable();
   await sleep(500);
   chipStack(46.6, 59.5, ['green', 'green']);
@@ -632,7 +696,7 @@ async function runSceneSurv() {
   bumpProtected(100);
   await sleep(1400);
 
-  /* --- incident 4: chip theft at the rail --- */
+  /* --- incident 7: chip theft at the rail --- */
   mark('theft');
   clearTable();
   await sleep(500);
@@ -650,7 +714,7 @@ async function runSceneSurv() {
   bumpProtected(500);
   await sleep(1400);
 
-  await banner('4 INCIDENTS FLAGGED \u00b7 $650 PROTECTED \u00b7 ZERO OPERATOR HOURS', 'neutral', 2600);
+  await banner('7 INCIDENTS FLAGGED \u00b7 $800 PROTECTED \u00b7 ZERO OPERATOR HOURS', 'neutral', 2600);
   clearInterval(clockTimer);
 }
 
